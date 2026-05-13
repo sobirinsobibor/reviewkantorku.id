@@ -231,14 +231,14 @@ const mobileMenuOpen = ref(false);
                                     </div>
 
                                     <!-- Admin -->
-                                    <Link
+                                    <a
                                         v-if="user.is_admin == 1"
                                         href="/admin"
                                         class="block px-4 py-3 text-sm font-medium text-blue-600 hover:bg-blue-50"
                                         @click="mobileMenuOpen = false"
                                     >
                                         Halaman Admin
-                                    </Link>
+                                    </a>
 
                                     <!-- Menu -->
                                     <Link
