@@ -37,15 +37,16 @@ class Interaction extends Model
     // Ambil "main content" berdasarkan type
     public function getMainContentsAttribute(): array
     {
-        $fields = config('interaction_fields.' . $this->type . '.main_contents', []);
+        return $this->attributes;
+        // $fields = config('interaction_fields.' . $this->type . '.main_contents', []);
         // return $fields;
-        $attrs = collect($this->attributes_parsed ?? []); // ← fix di sini
+        // $attrs = collect($this->attributes ?? []); // ← fix di sini
 
-        return collect($fields)
-            ->mapWithKeys(fn($field) => [
-                $field => $attrs->firstWhere('name', $field)['userData'] ?? 'gaada'
-            ])
-            ->all();
+        // return collect($fields)
+        //     ->mapWithKeys(fn($field) => [
+        //         $field => $attrs->firstWhere('name', $field)['userData'] ?? 'gaada'
+        //     ])
+        //     ->all();
     }
 
     public function getMainTitleAttribute(): ?string
