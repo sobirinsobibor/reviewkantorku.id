@@ -132,10 +132,8 @@ class PublicOfficeController extends Controller
             'data' => $interactions->getCollection()->map(fn ($interaction) => [
                 'id'              => $interaction->id,
                 'type'            => $interaction->type,
-                'main_contents'    => $interaction->main_contents, // ← ganti ini
+                'main_contents'   => $interaction->main_contents, // ← ganti ini
                 'attributes'      => $interaction->attributes,
-                // 'experience'      => $review->experience,
-                // 'positive_notes'  => $review->positive_notes,
                 'is_anonymous'    => $interaction->is_anonymous,
                 'created_at_human'=> $interaction->created_at->format('d M Y H:i'),
                 'files'           => $interaction->files->map(fn ($f) => [

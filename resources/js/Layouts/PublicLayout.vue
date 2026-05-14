@@ -1,6 +1,6 @@
 <script setup>
 import { ref } from "vue";
-import { Link, usePage } from "@inertiajs/vue3";
+import { Link, usePage, router  } from "@inertiajs/vue3";
 
 const page = usePage();
 
@@ -10,6 +10,10 @@ const userDropdown = ref(false);
 const user = page.props.auth?.user ?? null;
 
 const mobileMenuOpen = ref(false);
+
+const logout = () => {
+    router.post('/logout') // Inertia akan clear props + redirect otomatis
+}
 </script>
 
 <template>
@@ -116,6 +120,12 @@ const mobileMenuOpen = ref(false);
                                 >
                                     Keluar
                                 </Link>
+                                <!-- <button 
+                                    @click="logout"
+                                    class="block w-full px-3 py-2 text-left text-sm text-red-500 hover:bg-red-50"
+                                >
+                                    Keluar
+                                </button> -->
 
                                 <!-- Close -->
                                 <div class="border-t border-blue-50 px-3 py-2">

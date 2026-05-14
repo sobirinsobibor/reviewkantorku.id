@@ -271,13 +271,28 @@ const deleteOffice = (office) => {
 
         <!-- PAGINATION -->
         <div class="mt-4 flex justify-center gap-2">
-            <Link
-                v-for="link in offices.links"
-                :key="link.label"
-                :href="link.url || '#'"
-                v-html="link.label"
-                class="rounded border px-3 py-1 text-sm"
-            />
+            <template v-for="link in offices.links" :key="link.label">
+                <Link
+                    v-if="link.url"
+                    :href="link.url"
+                    class="rounded border px-3 py-1 text-sm transition"
+                    :class="link.active 
+                        ? 'bg-blue-500 text-white border-blue-500' 
+                        : 'text-gray-600 hover:bg-gray-100'"
+                >
+                    <span v-if="link.label.includes('previous') || link.label === '&laquo; Previous'">«</span>
+                    <span v-else-if="link.label.includes('next') || link.label === 'Next &raquo;'">»</span>
+                    <span v-else v-html="link.label" />
+                </Link>
+                <span
+                    v-else
+                    class="rounded border px-3 py-1 text-sm text-gray-300 cursor-not-allowed"
+                >
+                    <span v-if="link.label.includes('previous')">«</span>
+                    <span v-else-if="link.label.includes('next')">»</span>
+                    <span v-else v-html="link.label" />
+                </span>
+            </template>
         </div>
     </div>
 </template>

@@ -38,11 +38,12 @@ class Interaction extends Model
     public function getMainContentsAttribute(): array
     {
         $fields = config('interaction_fields.' . $this->type . '.main_contents', []);
-        $attrs = collect($this->attributes ?? []);
+        // return $fields;
+        $attrs = collect($this->attributes_parsed ?? []); // ← fix di sini
 
         return collect($fields)
             ->mapWithKeys(fn($field) => [
-                $field => $attrs->firstWhere('name', $field)['userData'][0] ?? null
+                $field => $attrs->firstWhere('name', $field)['userData'] ?? 'gaada'
             ])
             ->all();
     }
@@ -52,8 +53,9 @@ class Interaction extends Model
         $attrs = collect($this->attributes_parsed);
 
         return match($this->type) {
-            'qna'          => $attrs->firstWhere('name', 'question_title')['userData'][0] ?? null,
+            'qna'          => $attrs->firstWhere('name', 'content')['userData'][0] ?? null,
             'cerita_magang'=> $attrs->firstWhere('name', 'title')['userData'][0] ?? null,
+            'review'    => $attrs->firstWhere('name', 'experience')['userData'][0] ?? null,
             default        => null,
         };
     }
