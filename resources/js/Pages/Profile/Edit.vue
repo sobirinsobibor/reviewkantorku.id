@@ -2,7 +2,7 @@
 import { ref } from "vue";
 import { useForm } from "@inertiajs/vue3";
 import PublicLayout from "@/Layouts/PublicLayout.vue";
-import { useSweetAlert } from '@/Composables/useSweetAlert'
+import { useSweetAlert } from '@/Composables/UseSweetAlert'
 
 const previewImageModal = ref(null);
 const { toast } = useSweetAlert()
