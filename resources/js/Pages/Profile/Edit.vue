@@ -67,7 +67,7 @@ const submit = () => {
                 <div class="flex items-center gap-4">
                     <div
                         class="flex h-20 w-20 cursor-pointer items-center justify-center overflow-hidden rounded-full bg-blue-50"
-                        @click="preview && (previewImageModal = preview)"
+                        @click="previewImageModal = preview"
                     >
                         <img
                             v-if="preview"
