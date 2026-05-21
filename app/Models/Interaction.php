@@ -13,6 +13,9 @@ class Interaction extends Model
         'office_id',
         'user_id',
         'ulid',
+        'first_parent_id',
+        'direct_parent_id',
+        'reply_to',
         'attributes',
         'experience',
         'positive_notes',
@@ -37,28 +40,18 @@ class Interaction extends Model
     // Ambil "main content" berdasarkan type
     public function getMainContentsAttribute(): array
     {
-        return $this->attributes;
-        // $fields = config('interaction_fields.' . $this->type . '.main_contents', []);
-        // return $fields;
-        // $attrs = collect($this->attributes ?? []); // ← fix di sini
+        $fields = config('interaction_fields.' . $this->type . '.main_contents', []);
+        $labels = config('interaction_fields.' . $this->type . '.labels', []);
+        $attrs  = collect(json_decode($this->getAttributes()['attributes'] ?? '[]', true));
 
-        // return collect($fields)
-        //     ->mapWithKeys(fn($field) => [
-        //         $field => $attrs->firstWhere('name', $field)['userData'] ?? 'gaada'
-        //     ])
-        //     ->all();
-    }
-
-    public function getMainTitleAttribute(): ?string
-    {
-        $attrs = collect($this->attributes_parsed);
-
-        return match($this->type) {
-            'qna'          => $attrs->firstWhere('name', 'content')['userData'][0] ?? null,
-            'cerita_magang'=> $attrs->firstWhere('name', 'title')['userData'][0] ?? null,
-            'review'    => $attrs->firstWhere('name', 'experience')['userData'][0] ?? null,
-            default        => null,
-        };
+        return collect($fields)
+            ->mapWithKeys(fn($field) => [
+                $field => [
+                    'label' => $labels[$field] ?? $field,
+                    'value' => $attrs->firstWhere('name', $field)['userData'][0] ?? null,
+                ]
+            ])
+            ->all();
     }
     
     public function office()
@@ -101,13 +94,39 @@ class Interaction extends Model
             ->wherePivot('collection', 'cerita_magang');
     }
 
-    public function parent()
+    public function firstParent()
     {
-        return $this->belongsTo(Interaction::class, 'parent_id');
+        return $this->belongsTo(Interaction::class, 'first_parent_id');
     }
 
-    public function replies()
+    public function directParent()
     {
-        return $this->hasMany(Interaction::class, 'parent_id')->latest();
+        return $this->belongsTo(Interaction::class, 'direct_parent_id');
+    }
+
+    public function directReplies()
+    {
+        return $this->hasMany(Interaction::class, 'direct_parent_id','ulid')->latest();
+    }
+
+    // Interaction.php
+    public function likes()
+    {
+        return $this->belongsToMany(
+            User::class,
+            'interaction_likes', // pivot table
+            'interaction_id',
+            'user_id'
+        )->withTimestamps();
+    }
+
+    public function getLikesCountAttribute(): int
+    {
+        return $this->likes()->count();
+    }
+
+    public function isLikedBy(User $user): bool
+    {
+        return $this->likes()->where('user_id', $user->id)->exists();
     }
 }

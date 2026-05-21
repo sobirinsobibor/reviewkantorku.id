@@ -15,7 +15,7 @@ defineProps({
     <div>
         <div class="mb-5 flex items-center justify-between">
             <div>
-                <h2 class="text-lg font-medium text-gray-900">Daftar kantor dari push github action</h2>
+                <h2 class="text-lg font-medium text-gray-900">Daftar kantor</h2>
                 <p class="mt-0.5 text-sm text-gray-400">
                     {{ offices.total }} kantor tersedia
                 </p>
@@ -144,9 +144,9 @@ defineProps({
                                 {{ office.status_label }}
                             </span>
 
-                            <span class="text-[11px] text-gray-400">
+                            <!-- <span class="text-[11px] text-gray-400">
                                 {{ office.reviews_count }} Ulasan
-                            </span>
+                            </span> -->
                         </div>
                     </div>
                 </div>

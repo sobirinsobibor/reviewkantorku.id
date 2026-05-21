@@ -342,33 +342,19 @@ const logout = () => {
                     <div
                         class="mb-3 flex h-9 w-9 items-center justify-center rounded-xl bg-blue-100"
                     >
-                        <svg
-                            class="h-4 w-4 text-blue-600"
-                            fill="none"
-                            viewBox="0 0 16 16"
-                        >
-                            <rect
-                                x="2"
-                                y="4"
-                                width="12"
-                                height="10"
-                                rx="1"
-                                stroke="currentColor"
-                                stroke-width="1.2"
-                            />
-                            <path
-                                d="M5 4V3a3 3 0 016 0v1"
-                                stroke="currentColor"
-                                stroke-width="1.2"
-                            />
-                        </svg>
+                        <!-- logo login -->
+                        <img
+                            :src="'/storage/images/icon.jpeg'"
+                            alt="icon"
+                            class="h-8 w-auto"
+                        />
                     </div>
 
                     <h2 class="text-base font-semibold text-gray-900">
                         Masuk ke ReviewKantorku
                     </h2>
                     <p class="mt-0.5 text-sm text-gray-400">
-                        Masuk untuk menulis review kantor
+                        Masuk untuk berbagi pengalaman di dunia kerja.
                     </p>
                 </div>
 

@@ -7,6 +7,7 @@ use App\Models\File;
 use App\Models\Interaction;
 use App\Models\Office;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
@@ -105,5 +106,97 @@ class PublicInteractionController extends Controller
         });
 
         return back()->with('success', 'Review berhasil dikirim.');
+    }
+
+    // Endpoint lazy-load per tab
+    public function feed(Office $office, Request $request)
+    {
+        abort_if($office->status !== 'approved', 404);
+
+        $type = $request->query('type', 'review');
+        abort_unless(in_array($type, ['review', 'qna', 'cerita_magang', 'menfess', 'reply']), 422);
+
+        $interactions = $office->interactions()
+            ->where('type', $type)
+            ->where('is_hidden', false)
+            ->with([
+                'user',
+                'files' => fn ($q) => $q->wherePivot('collection', 'review_files'),
+            ])
+            ->withExists([
+                'likes as is_liked' => fn ($q) =>
+                    $q->where('user_id', auth()->id())
+            ])
+            ->latest()
+            ->paginate(10);
+
+        return response()->json([
+            'data' => $interactions->getCollection()->map(fn ($interaction) => [
+                'id'              => $interaction->id,
+                'ulid'            => $interaction->ulid,
+                'type'            => $interaction->type,
+                'main_contents'   => $interaction->main_contents,
+                'attributes'      => $interaction->attributes,
+                'is_anonymous'    => $interaction->is_anonymous,
+                'created_at_human'=> $interaction->created_at->format('d M Y H:i'),
+
+                'likes_count'     => $interaction->likes_count,
+                'is_liked'        => (bool) $interaction->is_liked,
+
+                'files' => $interaction->files->map(fn ($f) => [
+                    'id'         => $f->id,
+                    'url'        => asset('storage/' . $f->path),
+                    'path'       => $f->path,
+                    'filename'   => $f->filename,
+                    'collection' => $f->pivot?->collection,
+                ]),
+
+                'user' => [
+                    'name'     => $interaction->is_anonymous ? 'Anonim' : $interaction->user?->name,
+                    'initials' => $interaction->is_anonymous
+                        ? 'AN'
+                        : strtoupper(substr($interaction->user?->name ?? 'User', 0, 2)),
+                ],
+            ]),
+            'meta' => [
+                'current_page' => $interactions->currentPage(),
+                'last_page'    => $interactions->lastPage(),
+                'total'        => $interactions->total(),
+            ],
+        ]);
+    }
+
+    public function reply(Request $request, Interaction $interaction)
+    {
+        $validated = $request->validate([
+            'content'      => ['required', 'string', 'max:1000'],
+            'is_anonymous' => ['nullable', 'boolean'],
+        ]);
+
+        Interaction::create([
+            'ulid'         => (string) Str::ulid(),
+            'office_id'    => $interaction->office_id,
+            'user_id'      => auth()->id(),
+            'parent_id'    => $interaction->ulid,
+            'type'         => $interaction->type,
+            'is_anonymous' => $request->boolean('is_anonymous'),
+            'attributes'   => [
+                [
+                    'name'     => 'reply',
+                    'userData' => [$validated['content']],
+                ]
+            ],
+        ]);
+
+        return back()->with('success', 'Balasan berhasil dikirim.');
+    }
+
+    public function toggleLike(Interaction $interaction)
+    {
+        // dd('test');
+        $user = Auth::user();
+        $interaction->likes()->toggle($user->id);
+
+        return back();
     }
 }

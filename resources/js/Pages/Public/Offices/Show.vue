@@ -1,7 +1,8 @@
 <script setup>
-import { computed, ref, watch } from "vue";
-import { Link, usePage, useForm } from "@inertiajs/vue3";
+import { computed, ref, watch, reactive } from "vue";
+import { Link, usePage, useForm, router } from "@inertiajs/vue3";
 import PublicLayout from "@/Layouts/PublicLayout.vue";
+import { useSweetAlert } from '@/Composables/useSweetAlert'
 
 defineOptions({ layout: PublicLayout });
 
@@ -12,7 +13,30 @@ const props = defineProps({
 
 const page = usePage();
 const user = computed(() => page.props.auth?.user ?? null);
+const { toast } = useSweetAlert()
 
+const toggleLike = (interaction) => {
+    const wasLiked = interaction.is_liked; // simpan kondisi awal
+
+    router.post(
+        `/interactions/${interaction.ulid}/like`,
+        {},
+        {
+            preserveScroll: true,
+            onSuccess: () => {
+                interaction.is_liked = !wasLiked;
+                interaction.likes_count += wasLiked ? -1 : 1;
+
+                toast({
+                    icon: wasLiked ? 'info' : 'success',
+                    title: wasLiked
+                        ? 'Batal menyukai postingan ini'
+                        : 'Menyukai postingan ini',
+                });
+            },
+        }
+    );
+};
 /* ------------------------------------------------------------------ */
 /* TABS                                                                 */
 /* ------------------------------------------------------------------ */
@@ -24,6 +48,46 @@ const TABS = [
 ];
 
 const activeTab = ref("review");
+
+/* ------------------------------------------------------------------ */
+/* LABEL per tab                                                         */
+/* ------------------------------------------------------------------ */
+const tabWriteLabel = computed(() => {
+    const map = {
+        review: "Tulis Review",
+        qna: "Ajukan Pertanyaan",
+        cerita_magang: "Ceritakan Magang",
+        menfess: "Kirim Menfess",
+    };
+    return map[activeTab.value] ?? "Tulis";
+});
+
+/* ------------------------------------------------------------------ */
+/* Reply — Replying to                                                  */
+/* ------------------------------------------------------------------ */
+const replyingTo = ref(null); // menyimpan id interaction yang sedang dibalas
+
+const replyForm = reactive({
+    content: "",
+    is_anonymous: false,
+});
+const submitReply = (interaction) => {
+    console.log(`/interactions/${interaction.slug}/reply`, replyForm);
+    router.post(`/interactions/${interaction.slug}/reply`, replyForm, {
+        preserveScroll: true,
+        onSuccess: () => {
+            replyForm.content = "";
+            replyForm.is_anonymous = false;
+            replyingTo.value = null;
+        },
+    });
+};
+
+const cancelReply = () => {
+    replyForm.content = ''
+    replyForm.is_anonymous = false
+    replyingTo.value = null
+}
 
 /* ------------------------------------------------------------------ */
 /* FEED — cache per tab                                                 */
@@ -194,19 +258,6 @@ function removeReviewFilePreview(index) {
     reviewFilePreviews.value.splice(index, 1);
     reviewForm.files = reviewForm.files.filter((_, i) => i !== index);
 }
-
-/* ------------------------------------------------------------------ */
-/* LABEL per tab                                                         */
-/* ------------------------------------------------------------------ */
-const tabWriteLabel = computed(() => {
-    const map = {
-        review: "Tulis Review",
-        qna: "Ajukan Pertanyaan",
-        cerita_magang: "Ceritakan Magang",
-        menfess: "Kirim Menfess",
-    };
-    return map[activeTab.value] ?? "Tulis";
-});
 </script>
 
 <template>
@@ -262,7 +313,9 @@ const tabWriteLabel = computed(() => {
         <div class="mb-6 grid grid-cols-1 gap-4 lg:grid-cols-[1.1fr_0.9fr]">
             <!-- Foto -->
             <div v-if="office.photos.length" class="relative">
-                <div class="relative aspect-[4/3] overflow-hidden rounded-xl bg-blue-50">
+                <div
+                    class="relative aspect-[4/3] overflow-hidden rounded-xl bg-blue-50"
+                >
                     <img
                         :src="office.photos[currentPhoto].url"
                         alt="Foto kantor"
@@ -272,14 +325,21 @@ const tabWriteLabel = computed(() => {
                     <template v-if="office.photos.length > 1">
                         <button
                             type="button"
-                            @click="currentPhoto = (currentPhoto - 1 + office.photos.length) % office.photos.length"
+                            @click="
+                                currentPhoto =
+                                    (currentPhoto - 1 + office.photos.length) %
+                                    office.photos.length
+                            "
                             class="absolute left-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-gray-700 hover:bg-white"
                         >
                             ‹
                         </button>
                         <button
                             type="button"
-                            @click="currentPhoto = (currentPhoto + 1) % office.photos.length"
+                            @click="
+                                currentPhoto =
+                                    (currentPhoto + 1) % office.photos.length
+                            "
                             class="absolute right-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-gray-700 hover:bg-white"
                         >
                             ›
@@ -287,7 +347,9 @@ const tabWriteLabel = computed(() => {
                     </template>
 
                     <!-- {{-- Counter badge --}} -->
-                    <div class="absolute bottom-2 right-2 rounded-full bg-black/40 px-2 py-0.5 text-xs text-white">
+                    <div
+                        class="absolute bottom-2 right-2 rounded-full bg-black/40 px-2 py-0.5 text-xs text-white"
+                    >
                         {{ currentPhoto + 1 }} / {{ office.photos.length }}
                     </div>
                 </div>
@@ -303,9 +365,11 @@ const tabWriteLabel = computed(() => {
                         type="button"
                         @click="currentPhoto = index"
                         class="relative h-14 w-14 flex-shrink-0 overflow-hidden rounded-lg border-2 transition-all"
-                        :class="currentPhoto === index
-                            ? 'border-blue-500 opacity-100'
-                            : 'border-transparent opacity-50 hover:opacity-80'"
+                        :class="
+                            currentPhoto === index
+                                ? 'border-blue-500 opacity-100'
+                                : 'border-transparent opacity-50 hover:opacity-80'
+                        "
                     >
                         <img
                             :src="photo.url"
@@ -326,7 +390,11 @@ const tabWriteLabel = computed(() => {
                         type="button"
                         @click="currentPhoto = index"
                         class="rounded-full transition-all"
-                        :class="currentPhoto === index ? 'h-1.5 w-5 bg-blue-600' : 'h-1.5 w-1.5 bg-blue-200'"
+                        :class="
+                            currentPhoto === index
+                                ? 'h-1.5 w-5 bg-blue-600'
+                                : 'h-1.5 w-1.5 bg-blue-200'
+                        "
                     />
                 </div>
             </div>
@@ -495,36 +563,49 @@ const tabWriteLabel = computed(() => {
             <!-- List -->
             <div v-else class="space-y-2.5">
                 <button
-                    v-for="review in currentFeed.items"
-                    :key="review.id"
+                    v-for="interaction in currentFeed.items"
+                    :key="interaction.id"
                     type="button"
                     class="w-full rounded-xl border border-blue-100 bg-white p-4 text-left transition hover:border-blue-300 hover:shadow-sm"
-                    @click="detailReview = review"
+                    @click="detailReview = interaction"
                 >
                     <div class="mb-2 flex items-center justify-between">
                         <div class="flex items-center gap-2">
                             <div
                                 class="flex h-7 w-7 items-center justify-center rounded-full bg-blue-50 text-xs font-medium text-blue-700"
                             >
-                                {{ review.user.initials }}
+                                {{ interaction.user.initials }}
                             </div>
                             <span class="text-sm font-medium text-gray-900">{{
-                                review.user.name
+                                interaction.user.name
                             }}</span>
                         </div>
                         <span class="text-xs text-gray-400">{{
-                            review.created_at_human
+                            interaction.created_at_human
                         }}</span>
                     </div>
 
                     <!-- Preview ringkas — maks 2 baris -->
-                    <p class="line-clamp-2 text-sm leading-relaxed text-gray-600">
-                        {{ review.main_contents }}
-                    </p>
+
+                    <div class="space-y-2">
+                        <template
+                            v-for="(item, key) in interaction.main_contents"
+                            :key="key"
+                        >
+                            <div v-if="item.value">
+                                <!-- <p class="text-xs font-medium text-gray-400">
+                                    {{ item.label }}
+                                </p> -->
+                                <p class="text-sm text-gray-600">
+                                    {{ item.value }}
+                                </p>
+                            </div>
+                        </template>
+                    </div>
 
                     <!-- Badge foto -->
                     <div
-                        v-if="review.files?.length"
+                        v-if="interaction.files?.length"
                         class="mt-2 flex items-center gap-1 text-xs text-gray-400"
                     >
                         <svg
@@ -554,8 +635,28 @@ const tabWriteLabel = computed(() => {
                                 stroke-width="1.2"
                             />
                         </svg>
-                        {{ review.files.length }} foto
+                        {{ interaction.files.length }} foto
                     </div>
+
+                    <!-- Like + Reply buttons -->
+                    <div v-if="user" class="mt-2 flex items-center gap-3">
+                        <!-- Like button -->
+                        <button
+                            type="button"
+                            @click.stop="toggleLike(interaction)"
+                            class="flex items-center gap-1 text-xs transition"
+                            :class="
+                                interaction.is_liked
+                                    ? 'text-red-500'
+                                    : 'text-gray-400 hover:text-red-400'
+                            "
+                        >
+                            <span>{{ interaction.is_liked ? "❤️" : "🤍" }}</span>
+                            <span>{{ interaction.likes_count }}</span>
+                        </button>
+                    </div>
+
+                    
 
                     <p class="mt-2 text-xs text-blue-500 cursor-pointer">
                         Lihat selengkapnya →
@@ -638,32 +739,6 @@ const tabWriteLabel = computed(() => {
             </div>
 
             <div class="space-y-4 px-5 py-4">
-                <!-- Experience -->
-                <!-- <div>
-                    <p
-                        class="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-400"
-                    >
-                        Pengalaman
-                    </p>
-                    <p class="text-sm leading-relaxed text-gray-700">
-                        {{ detailReview.experience }}
-                    </p>
-                </div> -->
-
-                <!-- Positive notes -->
-                <!-- <div v-if="detailReview.positive_notes">
-                    <p
-                        class="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-400"
-                    >
-                        Hal Positif
-                    </p>
-                    <p
-                        class="rounded-lg bg-blue-50 px-3 py-2 text-sm text-blue-700"
-                    >
-                        {{ detailReview.positive_notes }}
-                    </p>
-                </div> -->
-
                 <!-- Attributes -->
                 <div
                     v-if="
@@ -802,7 +877,6 @@ const tabWriteLabel = computed(() => {
                     v-for="field in activeTemplate"
                     :key="field.name || field.label"
                 >
-        
                     <h1
                         v-if="field.type === 'header'"
                         class="text-base font-semibold text-gray-900"
@@ -1052,7 +1126,9 @@ const tabWriteLabel = computed(() => {
 
                 <!-- Anonim -->
                 <div class="flex justify-end">
-                    <label class="flex items-center gap-2 text-sm text-gray-700">
+                    <label
+                        class="flex items-center gap-2 text-sm text-gray-700"
+                    >
                         <input
                             v-model="reviewForm.is_anonymous"
                             type="checkbox"

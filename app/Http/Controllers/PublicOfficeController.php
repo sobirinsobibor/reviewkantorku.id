@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\ContentForm;
 use App\Models\Office;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
 
 class PublicOfficeController extends Controller
@@ -106,55 +107,10 @@ class PublicOfficeController extends Controller
                 'qna'           => ['id' => $templates->get('qna')?->id,            'schema' => $templates->get('qna')?->schema ?? []],
                 'cerita_magang' => ['id' => $templates->get('cerita_magang')?->id,  'schema' => $templates->get('cerita_magang')?->schema ?? []],
                 'menfess'       => ['id' => $templates->get('menfess')?->id,        'schema' => $templates->get('menfess')?->schema ?? []],
+                'reply'         => ['id' => $templates->get('reply')?->id,          'schema' => $templates->get('reply')?->schema ?? []],
             ],
         ]);
     }
 
-    // Endpoint lazy-load per tab
-    public function feed(Office $office, Request $request)
-    {
-        abort_if($office->status !== 'approved', 404);
-
-        $type = $request->query('type', 'review');
-        abort_unless(in_array($type, ['review', 'qna', 'cerita_magang', 'menfess']), 422);
-
-        $interactions = $office->interactions()
-            ->where('type', $type)
-            ->where('is_hidden', false)
-            ->with([
-                'user',
-                'files' => fn ($q) => $q->wherePivot('collection', 'review_files'),
-            ])
-            ->latest()
-            ->paginate(10);
-
-        return response()->json([
-            'data' => $interactions->getCollection()->map(fn ($interaction) => [
-                'id'              => $interaction->id,
-                'type'            => $interaction->type,
-                'main_contents'   => $interaction->main_contents, // ← ganti ini
-                'attributes'      => $interaction->attributes,
-                'is_anonymous'    => $interaction->is_anonymous,
-                'created_at_human'=> $interaction->created_at->format('d M Y H:i'),
-                'files'           => $interaction->files->map(fn ($f) => [
-                    'id'         => $f->id,
-                    'url'        => asset('storage/' . $f->path),
-                    'path'       => $f->path,
-                    'filename'   => $f->filename,
-                    'collection' => $f->pivot?->collection,
-                ]),
-                'user' => [
-                    'name'     => $interaction->is_anonymous ? 'Anonim' : $interaction->user?->name,
-                    'initials' => $interaction->is_anonymous
-                        ? 'AN'
-                        : strtoupper(substr($interaction->user?->name ?? 'User', 0, 2)),
-                ],
-            ]),
-            'meta' => [
-                'current_page' => $interactions->currentPage(),
-                'last_page'    => $interactions->lastPage(),
-                'total'        => $interactions->total(),
-            ],
-        ]);
-    }
+    
 }

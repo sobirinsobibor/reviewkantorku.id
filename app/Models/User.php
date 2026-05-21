@@ -70,4 +70,10 @@ class User extends Authenticatable implements FilamentUser
     {
         return $this->hasMany(Interaction::class);
     }
+
+    // User.php
+    public function likedInteractions()
+    {
+        return $this->belongsToMany(Interaction::class, 'interaction_likes')->withTimestamps();
+    }
 }

@@ -13,14 +13,10 @@ return new class extends Migration
     {
         Schema::create('interactions', function (Blueprint $table) {
             $table->id();
-
             $table->ulid('ulid')->unique();
 
-            // Self reference untuk reply
-            $table->foreignId('parent_id')
-                ->nullable()
-                ->constrained('interactions')
-                ->cascadeOnDelete();
+            $table->string('first_parent_id', 26)->nullable();
+            $table->string('direct_parent_id', 26)->nullable();
 
             $table->foreignId('office_id')
                 ->constrained('offices')
@@ -32,8 +28,11 @@ return new class extends Migration
 
             $table->json('attributes')->nullable();
 
-            $table->enum('type', ['review', 'cerita_magang', 'menfess', 'qna'])
+            $table->enum('type', ['review', 'cerita_magang', 'menfess', 'qna', 'reply'])
                 ->default('review');
+
+            $table->enum('reply_to', ['review', 'cerita_magang', 'menfess', 'qna'])
+                ->nullable();
 
             $table->boolean('is_anonymous')->default(false);
             $table->boolean('is_hidden')->default(false);
@@ -43,14 +42,23 @@ return new class extends Migration
             $table->softDeletes();
 
             $table->index('ulid');
-            $table->index('parent_id');
+            $table->index('first_parent_id');
+            $table->index('direct_parent_id');
             $table->index('office_id');
             $table->index('user_id');
             $table->index('type');
             $table->index('is_hidden');
             $table->index(['office_id', 'is_hidden']);
-            $table->index(['parent_id', 'is_hidden']);
+            $table->index(['first_parent_id', 'is_hidden']);
             $table->index(['office_id', 'type', 'is_hidden']);
+        });
+
+        // Tambah foreign key setelah tabel selesai dibuat
+        Schema::table('interactions', function (Blueprint $table) {
+            $table->foreign('first_parent_id')
+                ->references('ulid')
+                ->on('interactions')
+                ->cascadeOnDelete();
         });
         
     }
