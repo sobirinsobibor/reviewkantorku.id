@@ -2,7 +2,7 @@
 import { computed, ref, watch, reactive } from "vue";
 import { Link, usePage, useForm, router } from "@inertiajs/vue3";
 import PublicLayout from "@/Layouts/PublicLayout.vue";
-import { useSweetAlert } from '@/Composables/useSweetAlert'
+import { useSweetAlert } from '@/Composables/UseSweetAlert'
 
 defineOptions({ layout: PublicLayout });
 
