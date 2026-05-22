@@ -144,9 +144,9 @@ defineProps({
                                 {{ office.status_label }}
                             </span>
 
-                            <!-- <span class="text-[11px] text-gray-400">
+                            <span class="text-[11px] text-gray-400">
                                 {{ office.reviews_count }} Ulasan
-                            </span> -->
+                            </span>
                         </div>
                     </div>
                 </div>
