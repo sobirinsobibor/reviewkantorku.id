@@ -166,21 +166,28 @@ class PublicInteractionController extends Controller
         ]);
     }
 
-    public function reply(Request $request, Interaction $interaction)
+    public function reply(Request $request)
     {
+        // dd( $request);
         $validated = $request->validate([
             'content'      => ['required', 'string', 'max:1000'],
             'is_anonymous' => ['nullable', 'boolean'],
+            'office_id'    => ['required', 'exists:offices,id'],
+            'direct_parent' => ['required', 'exists:interactions,ulid'],
+            'first_parent'  => ['nullable', 'exists:interactions,ulid'],
+            'reply_to'      => ['required', 'in:review,cerita_magang,menfess,qna'],
         ]);
 
         Interaction::create([
-            'ulid'         => (string) Str::ulid(),
-            'office_id'    => $interaction->office_id,
-            'user_id'      => auth()->id(),
-            'parent_id'    => $interaction->ulid,
-            'type'         => $interaction->type,
-            'is_anonymous' => $request->boolean('is_anonymous'),
-            'attributes'   => [
+            'ulid'          => (string) Str::ulid(),
+            'office_id'     => $request->office_id,
+            'user_id'       => auth()->id(),
+            'type'          => 'reply',
+            'direct_parent_id' => $request->direct_parent,
+            'first_parent_id'  => $request->first_parent,
+            'reply_to'      => $request->reply_to,
+            'is_anonymous'  => $request->boolean('is_anonymous'),
+            'attributes'    => [
                 [
                     'name'     => 'reply',
                     'userData' => [$validated['content']],

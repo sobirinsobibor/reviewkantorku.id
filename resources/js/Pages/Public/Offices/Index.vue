@@ -32,7 +32,7 @@ defineProps({
             <Link
                 v-for="office in offices.data"
                 :key="office.id"
-                :href="`/detail/${office.slug}`"
+                :href="`/kantor/${office.slug}`"
                 class="group block"
             >
                 <div
@@ -145,7 +145,7 @@ defineProps({
                             </span>
 
                             <span class="text-[11px] text-gray-400">
-                                {{ office.reviews_count }} Ulasan
+                                {{ office.likes_count }} suka
                             </span>
                         </div>
                     </div>

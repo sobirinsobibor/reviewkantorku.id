@@ -41,6 +41,7 @@ class AdminPanelProvider extends PanelProvider
             ->colors([
                 'primary' => Color::hex('#0a4089'),
             ])
+            ->globalSearch(false)
             ->brandLogo(asset('storage/images/icon.jpeg'))
             ->brandName('Review Kantorku')
             ->brandLogoHeight('3rem')

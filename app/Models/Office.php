@@ -2,7 +2,10 @@
 
 namespace App\Models;
 
+use App\Models\OfficeReaction;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
 
@@ -124,5 +127,56 @@ class Office extends Model
         return $this->belongsTo(Regency::class, 'regency_id', 'id');
     }
 
-    
+    public function reactions(): HasMany
+    {
+        return $this->hasMany(OfficeReaction::class);
+    }
+
+    public function likes(): HasMany
+    {
+        return $this->reactions()->where('type', 'like');
+    }
+
+    public function dislikes(): HasMany
+    {
+        return $this->reactions()->where('type', 'dislike');
+    }
+
+    public function isLikedBy(?User $user): bool
+    {
+        if (! $user) {
+            return false;
+        }
+
+        return $this->reactions()
+            ->where('user_id', $user->id)
+            ->where('type', 'like')
+            ->exists();
+    }
+
+    public function isDislikedBy(?User $user): bool
+    {
+        if (! $user) {
+            return false;
+        }
+
+        return $this->reactions()
+            ->where('user_id', $user->id)
+            ->where('type', 'dislike')
+            ->exists();
+    }
+
+    public function getLikesCountAttribute(): int
+    {
+        return $this->reactions()
+            ->where('type', 'like')
+            ->count();
+    }
+
+    public function getDislikesCountAttribute(): int
+    {
+        return $this->reactions()
+            ->where('type', 'dislike')
+            ->count();
+    }    
 }

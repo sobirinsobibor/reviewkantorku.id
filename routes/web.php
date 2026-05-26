@@ -14,12 +14,16 @@ use Illuminate\Support\Facades\Route;
 Route::get('/auth-google-redirect', [LoginController::class, 'google_redirect']);
 Route::get('/auth-google-callback', [LoginController::class, 'google_callback']);
 
-Route::get('/', [PublicOfficeController::class, 'index'])
+Route::get('/kantor', [PublicOfficeController::class, 'index'])
     ->name('public.offices.index');
 
-Route::get('/detail/{office}', [PublicOfficeController::class, 'show'])
+Route::get('/kantor/{office}', [PublicOfficeController::class, 'show'])
     ->name('public.offices.show');
 
+Route::post('/offices/{office}/reaction', [PublicOfficeController::class, 'toggleReaction',])
+    ->middleware('auth')
+    ->name('offices.reaction');
+ 
 Route::get('/detail/{office}/feed', [PublicInteractionController::class, 'feed'])
     ->name('public.office.feed');
 

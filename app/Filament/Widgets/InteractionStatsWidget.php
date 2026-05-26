@@ -8,7 +8,7 @@ use Filament\Widgets\StatsOverviewWidget\Stat;
 
 class InteractionStatsWidget extends StatsOverviewWidget
 {
-        protected function getColumns(): int
+    protected function getColumns(): int
     {
         return 5;
     }

@@ -2,7 +2,7 @@
 import { computed, ref, watch, reactive } from "vue";
 import { Link, usePage, useForm, router } from "@inertiajs/vue3";
 import PublicLayout from "@/Layouts/PublicLayout.vue";
-import { useSweetAlert } from '@/Composables/UseSweetAlert'
+import { useSweetAlert } from "@/Composables/UseSweetAlert";
 
 defineOptions({ layout: PublicLayout });
 
@@ -13,9 +13,116 @@ const props = defineProps({
 
 const page = usePage();
 const user = computed(() => page.props.auth?.user ?? null);
-const { toast } = useSweetAlert()
+const { toast } = useSweetAlert();
 
-const toggleLike = (interaction) => {
+// toggle like / dislike kantor
+const isLiked = ref(props.office.is_liked_by_user ?? false);
+const isDisliked = ref(props.office.is_disliked_by_user ?? false);
+const likesCount = ref(props.office.likes_count ?? 0);
+const dislikesCount = ref(props.office.dislikes_count ?? 0);
+const isLoading = ref(false);
+const justLiked = ref(false);
+const justDisliked = ref(false);
+
+function toggleReactionOffice(type) {
+    const wasLiked = isLiked.value;
+    const wasDisliked = isDisliked.value;
+
+    if (isLoading.value) return;
+
+    if (!page.props.auth.user) {
+        toast({
+            icon: "error",
+            title: "Silakan login untuk melanjutkan aksi",
+        });
+        return;
+    }
+
+    const prevLiked = isLiked.value;
+    const prevDisliked = isDisliked.value;
+    const prevLikesCount = likesCount.value;
+    const prevDislikesCount = dislikesCount.value;
+
+    if (type === "like") {
+        if (isLiked.value) {
+            isLiked.value = false;
+            likesCount.value = Math.max(0, likesCount.value - 1);
+        } else {
+            if (isDisliked.value) {
+                isDisliked.value = false;
+                dislikesCount.value = Math.max(0, dislikesCount.value - 1);
+            }
+
+            isLiked.value = true;
+            likesCount.value++;
+        }
+    }
+
+    if (type === "dislike") {
+        if (isDisliked.value) {
+            isDisliked.value = false;
+            dislikesCount.value = Math.max(0, dislikesCount.value - 1);
+        } else {
+            if (isLiked.value) {
+                isLiked.value = false;
+                likesCount.value = Math.max(0, likesCount.value - 1);
+            }
+
+            isDisliked.value = true;
+            dislikesCount.value++;
+        }
+    }
+
+    isLoading.value = true;
+
+    router.post(
+        `/offices/${props.office.slug}/reaction`,
+        { type },
+        {
+            preserveScroll: true,
+            preserveState: true,
+
+            onSuccess: () => {
+                if (type === "like") {
+                    toast({
+                        icon: isLiked.value ? "success" : "info",
+                        title: isLiked.value
+                            ? "Menyukai kantor ini"
+                            : "Batal menyukai kantor ini",
+                    });
+                }
+
+                if (type === "dislike") {
+                    toast({
+                        icon: isDisliked.value ? "warning" : "info",
+                        title: isDisliked.value
+                            ? "Tidak menyukai kantor ini"
+                            : "Batal tidak menyukai kantor ini",
+                    });
+                }
+            },
+            onError: () => {
+                isLiked.value = prevLiked;
+                isDisliked.value = prevDisliked;
+                likesCount.value = prevLikesCount;
+                dislikesCount.value = prevDislikesCount;
+            },
+            onFinish: () => {
+                isLoading.value = false;
+            },
+        },
+    );
+}
+// toggle like interaction
+const toggleLikeInteraction = (interaction) => {
+    if (!page.props.auth.user) {
+        toast({
+            icon: "error",
+            title: "Silakan login untuk melanjutkan aksi",
+        });
+        return;
+    }
+
     const wasLiked = interaction.is_liked; // simpan kondisi awal
 
     router.post(
@@ -28,13 +135,13 @@ const toggleLike = (interaction) => {
                 interaction.likes_count += wasLiked ? -1 : 1;
 
                 toast({
-                    icon: wasLiked ? 'info' : 'success',
+                    icon: wasLiked ? "info" : "success",
                     title: wasLiked
-                        ? 'Batal menyukai postingan ini'
-                        : 'Menyukai postingan ini',
+                        ? "Batal menyukai postingan ini"
+                        : "Menyukai postingan ini",
                 });
             },
-        }
+        },
     );
 };
 /* ------------------------------------------------------------------ */
@@ -69,11 +176,19 @@ const replyingTo = ref(null); // menyimpan id interaction yang sedang dibalas
 
 const replyForm = reactive({
     content: "",
+    reply_to: null,
+    direct_parent : null,
+    first_parent : null,
     is_anonymous: false,
+    office_id: props.office.id,
 });
 const submitReply = (interaction) => {
-    console.log(`/interactions/${interaction.slug}/reply`, replyForm);
-    router.post(`/interactions/${interaction.slug}/reply`, replyForm, {
+    console.log(`/interactions/${interaction.ulid}/reply`, replyForm);
+
+    replyForm.direct_parent = interaction.ulid;
+    replyForm.first_parent = interaction.first_parent ?? interaction.ulid;
+
+    router.post(`/interactions/${interaction.ulid}/reply`, replyForm, {
         preserveScroll: true,
         onSuccess: () => {
             replyForm.content = "";
@@ -83,11 +198,34 @@ const submitReply = (interaction) => {
     });
 };
 
+const replyTo = (interaction) => {
+    if (!page.props.auth.user) {
+        toast({
+            icon: "error",
+            title: "Silakan login untuk melanjutkan aksi",
+        });
+        return;
+    }
+    if (replyingTo.value === interaction.ulid) {
+        cancelReply();
+    } else {
+        replyingTo.value = interaction.ulid;
+        replyForm.content = "";
+        replyForm.is_anonymous = false;
+        replyForm.direct_parent = interaction.ulid;
+        replyForm.reply_to = interaction.type;
+
+        // kalau interaction ini komentar utama, first_parent = dirinya sendiri
+        // kalau interaction ini balasan, first_parent tetap ikut dari root asalnya
+        replyForm.first_parent = interaction.first_parent ?? interaction.ulid;
+    }
+};
+
 const cancelReply = () => {
-    replyForm.content = ''
-    replyForm.is_anonymous = false
-    replyingTo.value = null
-}
+    replyForm.content = "";
+    replyForm.is_anonymous = false;
+    replyingTo.value = null;
+};
 
 /* ------------------------------------------------------------------ */
 /* FEED — cache per tab                                                 */
@@ -303,7 +441,7 @@ function removeReviewFilePreview(index) {
                 </div>
             </div>
             <span
-                class="inline-flex items-center gap-1 rounded-md bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-700"
+                class="inline-flex items-center gap-1 rounded-md bg-blue-50 px-2.5 py-1 text-xs font-medium text-green-600"
             >
                 {{ office.status_label }}
             </span>
@@ -433,61 +571,150 @@ function removeReviewFilePreview(index) {
             </div>
 
             <!-- Info -->
-            <div class="rounded-xl border border-blue-100 bg-white p-4">
-                <p
-                    class="mb-3 text-xs font-medium uppercase tracking-wide text-gray-400"
-                >
-                    Informasi kantor
-                </p>
-                <div class="divide-y divide-blue-50">
-                    <div class="flex gap-3 py-2 text-sm">
-                        <span class="w-16 shrink-0 text-gray-400">Nama</span>
-                        <span class="font-medium text-gray-900">{{
-                            office.name
-                        }}</span>
-                    </div>
-                    <div class="flex gap-3 py-2 text-sm">
-                        <span class="w-16 shrink-0 text-gray-400">Alamat</span>
-                        <span class="font-medium text-gray-900">{{
-                            office.address || "-"
-                        }}</span>
-                    </div>
-                    <div class="flex gap-3 py-2 text-sm">
-                        <span class="w-16 shrink-0 text-gray-400">Kota</span>
-                        <span class="font-medium text-gray-900"
-                            >{{ office.regency }}, {{ office.province }}</span
-                        >
-                    </div>
-                    <div
-                        v-if="office.industries?.length"
-                        class="flex gap-3 py-2 text-sm"
+            <div
+                class="overflow-hidden rounded-xl border border-gray-200 bg-white"
+            >
+                <!-- Header Office -->
+                <div class="flex items-start gap-4 p-5">
+                    <!-- <div
+                        class="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-blue-50 text-blue-600"
                     >
-                        <span class="w-16 shrink-0 text-gray-400"
-                            >Industri</span
+                        <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            class="h-8 w-8"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                            stroke-width="1.8"
                         >
-                        <div class="flex flex-wrap gap-1">
-                            <span
-                                v-for="industry in office.industries"
-                                :key="industry.id"
-                                class="rounded-md bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700"
-                            >
-                                {{ industry.name }}
+                            <path
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                d="M3 21h18M6 21V7l6-3v17M18 21V9l-6-2M9 10h.01M9 14h.01M9 18h.01M15 12h.01M15 16h.01"
+                            />
+                        </svg>
+                    </div> -->
+
+                    <div class="min-w-0">
+                        <h2 class="text-xl font-semibold text-gray-900">
+                            {{ office.name }}
+                        </h2>
+
+                        <div
+                            class="mt-1 flex items-center gap-1 text-sm text-gray-600"
+                        >
+                            <span>
+                                {{ office.address || "-" }} ·
+                                {{ office.regency }}, {{ office.province }}
                             </span>
                         </div>
                     </div>
                 </div>
 
-                <!-- Count per tab -->
-                <div class="mt-3 border-t border-blue-50 pt-3">
+                <!-- Industries -->
+                <div
+                    v-if="office.industries?.length"
+                    class="border-t border-gray-200 p-5"
+                >
+                    <!-- <p
+                        class="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-500"
+                    >
+                        Industri
+                    </p> -->
+
+                    <div class="flex flex-wrap gap-2">
+                        <span
+                            v-for="industry in office.industries"
+                            :key="industry.id"
+                            class="rounded-full bg-blue-50 px-4 py-1 text-xs font-small text-blue-700"
+                        >
+                            {{ industry.name }}
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Reactions -->
+                <!-- Reactions -->
+                <div class="border-t border-gray-200 px-5 py-5">
+                    <div class="flex items-center gap-3">
+                        <!-- Like -->
+                        <button
+                            type="button"
+                            @click="toggleReactionOffice('like')"
+                            :disabled="isLoading"
+                            class="inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-50"
+                            :class="
+                                isLiked
+                                    ? 'border-red-300 bg-red-50 text-red-600'
+                                    : 'border-gray-300 bg-white text-gray-700 hover:border-red-300 hover:text-red-500'
+                            "
+                        >
+                            <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                class="h-5 w-5 transition-transform duration-200"
+                                :class="{ 'scale-125': justLiked }"
+                                :fill="isLiked ? 'currentColor' : 'none'"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                                stroke-width="2"
+                            >
+                                <path
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    d="M14 9V5a3 3 0 00-3-3l-4 9v11h11.28a2 2 0 001.97-1.66l1.38-8A2 2 0 0018.66 10H14zM7 22H4a2 2 0 01-2-2v-7a2 2 0 012-2h3"
+                                />
+                            </svg>
+
+                            <span>{{ likesCount }}</span>
+                        </button>
+
+                        <div class="h-6 w-px bg-gray-200"></div>
+
+                        <!-- Dislike -->
+                        <button
+                            type="button"
+                            @click="toggleReactionOffice('dislike')"
+                            :disabled="isLoading"
+                            class="inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-50"
+                            :class="
+                                isDisliked
+                                    ? 'border-gray-500 bg-gray-100 text-gray-900'
+                                    : 'border-gray-300 bg-white text-gray-700 hover:border-gray-500 hover:text-gray-900'
+                            "
+                        >
+                            <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                class="h-5 w-5 transition-transform duration-200"
+                                :class="{ 'scale-125': justDisliked }"
+                                :fill="isDisliked ? 'currentColor' : 'none'"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                                stroke-width="2"
+                            >
+                                <path
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    d="M10 15v4a3 3 0 003 3l4-9V2H5.72a2 2 0 00-1.97 1.66l-1.38 8A2 2 0 004.34 14H10zM17 2h3a2 2 0 012 2v7a2 2 0 01-2 2h-3"
+                                />
+                            </svg>
+
+                            <span>{{ dislikesCount }}</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Statistics -->
+                <div class="border-t border-gray-200 p-5">
                     <div class="grid grid-cols-2 gap-2">
                         <div
                             v-for="tab in TABS"
                             :key="tab.key"
-                            class="rounded-lg bg-blue-50 p-2.5"
+                            class="rounded-lg bg-blue-50 p-2.5 text-center"
                         >
                             <p class="mb-0.5 text-xs text-gray-400">
                                 {{ tab.label }}
                             </p>
+
                             <p class="text-xl font-semibold text-gray-900">
                                 {{ office.counts[tab.key] ?? 0 }}
                             </p>
@@ -561,106 +788,266 @@ function removeReviewFilePreview(index) {
             </div>
 
             <!-- List -->
-            <div v-else class="space-y-2.5">
+            <div v-else class="space-y-3">
                 <button
                     v-for="interaction in currentFeed.items"
                     :key="interaction.id"
                     type="button"
-                    class="w-full rounded-xl border border-blue-100 bg-white p-4 text-left transition hover:border-blue-300 hover:shadow-sm"
-                    @click="detailReview = interaction"
+                    class="relative w-full rounded-xl border border-gray-100 bg-white p-5 text-left transition hover:border-gray-200 group"
                 >
-                    <div class="mb-2 flex items-center justify-between">
-                        <div class="flex items-center gap-2">
+                    <!-- Blue left accent on hover -->
+                    <span
+                        class="absolute left-0 top-4 bottom-4 w-0.5 rounded-r bg-blue-600 opacity-0 group-hover:opacity-100 transition-opacity"
+                    ></span>
+
+                    <!-- Header -->
+                    <div class="mb-3 flex items-center justify-between">
+                        <div class="flex items-center gap-2.5">
                             <div
-                                class="flex h-7 w-7 items-center justify-center rounded-full bg-blue-50 text-xs font-medium text-blue-700"
+                                class="flex h-8 w-8 items-center justify-center rounded-full border border-gray-100 bg-blue-50 text-xs font-medium text-blue-700"
                             >
                                 {{ interaction.user.initials }}
                             </div>
-                            <span class="text-sm font-medium text-gray-900">{{
-                                interaction.user.name
-                            }}</span>
+                            <span class="text-sm font-medium text-gray-900">
+                                {{ interaction.user.name }}
+                            </span>
                         </div>
-                        <span class="text-xs text-gray-400">{{
-                            interaction.created_at_human
-                        }}</span>
+                        <span class="text-xs text-gray-400 tracking-wide">
+                            {{ interaction.created_at_human }}
+                        </span>
                     </div>
 
-                    <!-- Preview ringkas — maks 2 baris -->
+                    <!-- Divider -->
+                    <div class="mb-3 h-px bg-gray-100"></div>
 
-                    <div class="space-y-2">
+                    <!-- Content -->
+                    <div class="space-y-1.5">
                         <template
                             v-for="(item, key) in interaction.main_contents"
                             :key="key"
                         >
-                            <div v-if="item.value">
-                                <!-- <p class="text-xs font-medium text-gray-400">
-                                    {{ item.label }}
-                                </p> -->
-                                <p class="text-sm text-gray-600">
-                                    {{ item.value }}
-                                </p>
-                            </div>
+                            <p
+                                v-if="item.value"
+                                class="text-sm leading-relaxed text-gray-500"
+                            >
+                                {{ item.value }}
+                            </p>
                         </template>
                     </div>
 
-                    <!-- Badge foto -->
-                    <div
-                        v-if="interaction.files?.length"
-                        class="mt-2 flex items-center gap-1 text-xs text-gray-400"
-                    >
-                        <svg
-                            class="h-3.5 w-3.5"
-                            fill="none"
-                            viewBox="0 0 16 16"
+                    <!-- Photo badge -->
+                    <div v-if="interaction.files?.length" class="mt-3">
+                        <span
+                            class="inline-flex items-center gap-1.5 rounded-lg border border-gray-100 bg-gray-50 px-2.5 py-1 text-xs text-gray-400"
                         >
-                            <rect
-                                x="1"
-                                y="3"
-                                width="14"
-                                height="11"
-                                rx="1.5"
-                                stroke="currentColor"
-                                stroke-width="1.2"
-                            />
-                            <circle
-                                cx="5.5"
-                                cy="7.5"
-                                r="1.5"
-                                stroke="currentColor"
-                                stroke-width="1.2"
-                            />
-                            <path
-                                d="M1 12l3.5-3.5 2.5 2.5 2.5-2.5 4.5 4"
-                                stroke="currentColor"
-                                stroke-width="1.2"
-                            />
-                        </svg>
-                        {{ interaction.files.length }} foto
+                            <svg
+                                class="h-3.5 w-3.5"
+                                fill="none"
+                                viewBox="0 0 16 16"
+                            >
+                                <rect
+                                    x="1"
+                                    y="3"
+                                    width="14"
+                                    height="11"
+                                    rx="1.5"
+                                    stroke="currentColor"
+                                    stroke-width="1.2"
+                                />
+                                <circle
+                                    cx="5.5"
+                                    cy="7.5"
+                                    r="1.5"
+                                    stroke="currentColor"
+                                    stroke-width="1.2"
+                                />
+                                <path
+                                    d="M1 12l3.5-3.5 2.5 2.5 2.5-2.5 4.5 4"
+                                    stroke="currentColor"
+                                    stroke-width="1.2"
+                                />
+                            </svg>
+                            {{ interaction.files.length }} foto
+                        </span>
                     </div>
 
-                    <!-- Like + Reply buttons -->
-                    <div v-if="user" class="mt-2 flex items-center gap-3">
-                        <!-- Like button -->
+                    <!-- Footer -->
+                    <div class="mt-4 flex items-center justify-between">
+                        <div class="flex items-center gap-1">
+                            <!-- Like button -->
+                            <button
+                                type="button"
+                                @click.stop="toggleLikeInteraction(interaction)"
+                                class="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs transition"
+                                :class="
+                                    interaction.is_liked
+                                        ? 'text-red-500 hover:bg-red-50'
+                                        : 'text-gray-400 hover:bg-gray-50 hover:text-red-400'
+                                "
+                            >
+                                <span>{{
+                                    interaction.is_liked ? "❤️" : "🤍"
+                                }}</span>
+                                <span class="tabular-nums">{{
+                                    interaction.likes_count
+                                }}</span>
+                            </button>
+
+                            <!-- Separator -->
+                            <span class="h-3.5 w-px bg-gray-200"></span>
+
+                            <!-- Reply button -->
+                            <button
+                                type="button"
+                                @click.stop="replyTo(interaction)"
+                                class="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs transition"
+                                :class="
+                                    replyingTo === interaction.ulid
+                                        ? 'bg-blue-50 text-blue-500'
+                                        : 'text-gray-400 hover:bg-gray-50 hover:text-blue-500'
+                                "
+                            >
+                                <svg
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    class="h-3.5 w-3.5"
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    stroke-width="2"
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                >
+                                    <polyline points="9 17 4 12 9 7" />
+                                    <path d="M20 18v-2a4 4 0 0 0-4-4H4" />
+                                </svg>
+                                <span>Balas</span>
+                            </button>
+                            <!-- Tambah di template, di dalam card, setelah card-footer -->
+                        </div>
+
+                        <!-- See more -->
+                        <!-- Tombol Selengkapnya -->
                         <button
                             type="button"
-                            @click.stop="toggleLike(interaction)"
-                            class="flex items-center gap-1 text-xs transition"
-                            :class="
-                                interaction.is_liked
-                                    ? 'text-red-500'
-                                    : 'text-gray-400 hover:text-red-400'
-                            "
+                            @click.stop="detailReview = interaction"
+                            class="inline-flex items-center gap-1 text-xs text-blue-500 hover:underline"
                         >
-                            <span>{{ interaction.is_liked ? "❤️" : "🤍" }}</span>
-                            <span>{{ interaction.likes_count }}</span>
+                            Selengkapnya
+                            <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                class="h-3 w-3"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                stroke-width="2"
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                            >
+                                <path d="M5 12h14M12 5l7 7-7 7" />
+                            </svg>
                         </button>
                     </div>
+                    <!-- Reply Accordion -->
+                    <transition
+                        enter-active-class="transition-all duration-200 ease-out"
+                        enter-from-class="opacity-0 max-h-0"
+                        enter-to-class="opacity-100 max-h-48"
+                        leave-active-class="transition-all duration-150 ease-in"
+                        leave-from-class="opacity-100 max-h-48"
+                        leave-to-class="opacity-0 max-h-0"
+                    >
+                        <div
+                            v-if="replyingTo === interaction.ulid"
+                            class="overflow-hidden border-t border-gray-100 bg-gray-50"
+                        >
+                            <div class="px-6 py-4">
+                                <p
+                                    class="mb-2 flex items-center gap-1.5 text-xs text-gray-400"
+                                >
+                                    <svg
+                                        xmlns="http://www.w3.org/2000/svg"
+                                        class="h-3.5 w-3.5"
+                                        viewBox="0 0 24 24"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        stroke-width="2"
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                    >
+                                        <polyline points="9 17 4 12 9 7" />
+                                        <path d="M20 18v-2a4 4 0 0 0-4-4H4" />
+                                    </svg>
+                                    Membalas
+                                    <strong class="font-medium text-gray-600">{{
+                                        interaction.user.name
+                                    }}</strong>
+                                </p>
 
-                    
+                                <textarea
+                                    v-model="replyForm.content"
+                                    rows="2"
+                                    placeholder="Tulis balasan..."
+                                    class="w-full resize-none rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 placeholder-gray-400 outline-none transition focus:border-blue-400"
+                                    @click.stop
+                                ></textarea>
 
-                    <p class="mt-2 text-xs text-blue-500 cursor-pointer">
-                        Lihat selengkapnya →
-                    </p>
+                                <div
+                                    class="mt-2.5 flex items-center justify-between"
+                                >
+                                    <label
+                                        class="flex cursor-pointer items-center gap-1.5 text-xs text-gray-400"
+                                        @click.stop
+                                    >
+                                        <input
+                                            type="checkbox"
+                                            v-model="replyForm.is_anonymous"
+                                            class="accent-blue-600"
+                                        />
+                                        Kirim anonim
+                                    </label>
+
+                                    <div class="flex gap-2">
+                                        <button
+                                            type="button"
+                                            @click.stop="cancelReply"
+                                            class="rounded-lg border border-gray-200 px-3 py-1.5 text-xs text-gray-500 transition hover:bg-gray-100"
+                                        >
+                                            Batal
+                                        </button>
+                                        <button
+                                            type="button"
+                                            @click.stop="
+                                                submitReply(interaction)
+                                            "
+                                            class="flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-1.5 text-xs text-white transition hover:bg-blue-700"
+                                        >
+                                            <svg
+                                                xmlns="http://www.w3.org/2000/svg"
+                                                class="h-3.5 w-3.5"
+                                                viewBox="0 0 24 24"
+                                                fill="none"
+                                                stroke="currentColor"
+                                                stroke-width="2"
+                                                stroke-linecap="round"
+                                                stroke-linejoin="round"
+                                            >
+                                                <line
+                                                    x1="22"
+                                                    y1="2"
+                                                    x2="11"
+                                                    y2="13"
+                                                />
+                                                <polygon
+                                                    points="22 2 15 22 11 13 2 9 22 2"
+                                                />
+                                            </svg>
+                                            Kirim
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </transition>
                 </button>
             </div>
 
