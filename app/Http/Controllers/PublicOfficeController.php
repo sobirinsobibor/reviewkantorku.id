@@ -13,6 +13,7 @@ class PublicOfficeController extends Controller
 {
     public function index()
     {
+        dd('test');
         $offices = Office::query()
             ->where('status', 'approved')
             ->with([
