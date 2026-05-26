@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\HomeController;
 use App\Http\Controllers\InteractionController;
 use App\Http\Controllers\LoginController;
 use App\Http\Controllers\OfficeController;
@@ -13,6 +14,9 @@ use Illuminate\Support\Facades\Route;
 
 Route::get('/auth-google-redirect', [LoginController::class, 'google_redirect']);
 Route::get('/auth-google-callback', [LoginController::class, 'google_callback']);
+
+Route::get('/', [HomeController::class, 'index'])
+    ->name('index');
 
 Route::get('/kantor', [PublicOfficeController::class, 'index'])
     ->name('public.offices.index');
