@@ -31,6 +31,9 @@ Route::post('/offices/{office}/reaction', [PublicOfficeController::class, 'toggl
 Route::get('/detail/{office}/feed', [PublicInteractionController::class, 'feed'])
     ->name('public.office.feed');
 
+Route::get('/interactions/{interaction:ulid}/replies', [PublicInteractionController::class, 'replies'])
+    ->name('interactions.replies');
+
 Route::post('/kantor/{office}/interactions', [PublicInteractionController::class, 'store'])
     ->middleware('auth')
     ->name('public.offices.interactions.store');

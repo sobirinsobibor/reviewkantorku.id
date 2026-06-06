@@ -128,6 +128,7 @@ class PublicInteractionController extends Controller
                     $q->where('user_id', auth()->id())
             ])
             ->latest()
+            ->orderBy('created_at', 'desc')
             ->paginate(10);
 
         return response()->json([
@@ -205,5 +206,44 @@ class PublicInteractionController extends Controller
         $interaction->likes()->toggle($user->id);
 
         return back();
+    }
+
+    public function replies(Interaction $interaction)
+    {
+        $replies = Interaction::query()
+            ->with(['user', 'directParent.user'])
+            ->withCount('likes')
+            ->where('first_parent_id', $interaction->ulid)
+            ->where('type', 'reply')
+            // ->oldest()
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        return response()->json([
+            'data' => $replies->map(fn ($reply) => [
+                'ulid' => $reply->ulid,
+                'type' => $reply->type,
+                'first_parent_id' => $reply->first_parent_id,
+                'direct_parent_id' => $reply->direct_parent_id,
+                'main_contents' => $reply->main_contents,
+                'is_liked' => auth()->check()
+                    ? $reply->likes()->where('user_id', auth()->id())->exists()
+                    : false,
+
+                'likes_count' => $reply->likes_count,
+                'user' => [
+                    'id' => $reply->user?->id,
+                    'name' => $reply->is_anonymous ? 'Anonim' : $reply->user?->name,
+                ],
+                'direct_parent' => $reply->directParent ? [
+                    'ulid' => $reply->directParent->ulid,
+                    'user' => [
+                        'name' => $reply->directParent->is_anonymous
+                            ? 'Anonim'
+                            : $reply->directParent->user?->name,
+                    ],
+                ] : null,
+            ]),
+        ]);
     }
 }

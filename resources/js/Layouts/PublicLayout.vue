@@ -1,19 +1,24 @@
 <script setup>
-import { ref } from "vue";
-import { Link, usePage, router  } from "@inertiajs/vue3";
+import { ref, onMounted } from "vue";
+import { Link, usePage } from "@inertiajs/vue3";
 
 const page = usePage();
-
 const loginModal = ref(false);
 const userDropdown = ref(false);
-
 const user = page.props.auth?.user ?? null;
-
 const mobileMenuOpen = ref(false);
 
-const logout = () => {
-    router.post('/logout') // Inertia akan clear props + redirect otomatis
-}
+const navLinks = [
+    { label: 'Home', href: '/' },
+    { label: 'Kantor', href: '/kantor' },
+]
+
+onMounted(() => {
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('login') === '1') {
+        loginModal.value = true
+    }
+})
 </script>
 
 <template>
@@ -45,6 +50,21 @@ const logout = () => {
                 <div class="flex items-center gap-2">
                     <!-- ================= DESKTOP ================= -->
                     <div class="hidden items-center gap-2 sm:flex">
+                        <Link
+                            v-for="link in navLinks"
+                            :key="link.href"
+                            :href="link.href"
+                            class="rounded-lg px-3 py-1.5 text-sm font-medium text-gray-600 hover:bg-blue-50 hover:text-blue-600 transition-colors"
+                            :class="{
+                                'bg-blue-50 text-blue-600':
+                                    $page.url === link.href ||
+                                    (link.href !== '/' &&
+                                        $page.url.startsWith(link.href)),
+                            }"
+                        >
+                            {{ link.label }}
+                        </Link>
+
                         <div v-if="user" class="relative user-dropdown-wrapper">
                             <button
                                 type="button"
@@ -73,14 +93,16 @@ const logout = () => {
                                 class="absolute right-0 z-50 mt-2 w-52 rounded-xl border border-blue-100 bg-white py-1 shadow-lg"
                             >
                                 <!-- User -->
-                                <div
-                                    class="border-b border-blue-50 px-3 py-2"
-                                >
-                                    <p class="truncate text-xs font-medium text-gray-900">
+                                <div class="border-b border-blue-50 px-3 py-2">
+                                    <p
+                                        class="truncate text-xs font-medium text-gray-900"
+                                    >
                                         {{ user.name }}
                                     </p>
 
-                                    <p class="truncate text-[11px] text-gray-400">
+                                    <p
+                                        class="truncate text-[11px] text-gray-400"
+                                    >
                                         {{ user.email }}
                                     </p>
                                 </div>
@@ -152,8 +174,9 @@ const logout = () => {
                     </div>
 
                     <!-- ================= MOBILE ================= -->
-                    <div class="sm:hidden">
-                        <!-- kalau belum login -->
+                    <!-- ================= MOBILE ================= -->
+                    <div class="sm:hidden flex items-center gap-2">
+                        <!-- Belum login -->
                         <button
                             v-if="!user"
                             type="button"
@@ -163,7 +186,7 @@ const logout = () => {
                             Masuk
                         </button>
 
-                        <!-- kalau login -->
+                        <!-- Sudah login: hamburger -->
                         <button
                             v-else
                             type="button"
@@ -183,7 +206,6 @@ const logout = () => {
                                     stroke-linecap="round"
                                 />
                             </svg>
-
                             <svg
                                 v-else
                                 class="h-5 w-5"
@@ -226,18 +248,44 @@ const logout = () => {
                                 >
                                     <!-- Handle -->
                                     <div class="flex justify-center pb-1 pt-2">
-                                        <div class="h-1 w-10 rounded-full bg-gray-200" />
+                                        <div
+                                            class="h-1 w-10 rounded-full bg-gray-200"
+                                        />
                                     </div>
 
                                     <!-- User -->
-                                    <div class="border-b border-blue-50 px-4 py-3">
-                                        <p class="text-sm font-medium text-gray-900">
+                                    <div
+                                        class="border-b border-blue-50 px-4 py-3"
+                                    >
+                                        <p
+                                            class="text-sm font-medium text-gray-900"
+                                        >
                                             {{ user.name }}
                                         </p>
-
                                         <p class="text-xs text-gray-400">
                                             {{ user.email }}
                                         </p>
+                                    </div>
+
+                                    <!-- Nav Links -->
+                                    <div class="border-b border-blue-50 py-1">
+                                        <a
+                                            v-for="link in navLinks"
+                                            :key="link.href"
+                                            :href="link.href"
+                                            class="block px-4 py-3 text-sm font-medium text-gray-700 hover:bg-blue-50 hover:text-blue-600"
+                                            :class="{
+                                                'text-blue-600 bg-blue-50':
+                                                    $page.url === link.href ||
+                                                    (link.href !== '/' &&
+                                                        $page.url.startsWith(
+                                                            link.href,
+                                                        )),
+                                            }"
+                                            @click="mobileMenuOpen = false"
+                                        >
+                                            {{ link.label }}
+                                        </a>
                                     </div>
 
                                     <!-- Admin -->
@@ -250,7 +298,7 @@ const logout = () => {
                                         Halaman Admin
                                     </a>
 
-                                    <!-- Menu -->
+                                    <!-- Menu Akun -->
                                     <Link
                                         href="/dashboard"
                                         class="block px-4 py-3 text-sm text-gray-700 hover:bg-blue-50"
@@ -258,7 +306,6 @@ const logout = () => {
                                     >
                                         Dashboard saya
                                     </Link>
-
                                     <Link
                                         href="/my-profile"
                                         class="block px-4 py-3 text-sm text-gray-700 hover:bg-blue-50"
@@ -267,7 +314,9 @@ const logout = () => {
                                         Profil saya
                                     </Link>
 
-                                    <div class="my-1 border-t border-gray-100" />
+                                    <div
+                                        class="my-1 border-t border-gray-100"
+                                    />
 
                                     <!-- Logout -->
                                     <Link

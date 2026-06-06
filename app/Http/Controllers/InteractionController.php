@@ -22,6 +22,7 @@ class InteractionController extends Controller
                 'ulid' => $interaction->ulid,
                 'type' => $interaction->type,
                 'user_id' => $interaction->user_id,
+                'main_contents' => $interaction->main_contents,
                 'office' => [
                     'name' => $interaction->office?->name,
                     'slug' => $interaction->office?->slug,

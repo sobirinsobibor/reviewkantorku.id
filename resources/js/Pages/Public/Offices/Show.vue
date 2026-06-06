@@ -177,28 +177,12 @@ const replyingTo = ref(null); // menyimpan id interaction yang sedang dibalas
 const replyForm = reactive({
     content: "",
     reply_to: null,
-    direct_parent : null,
-    first_parent : null,
+    direct_parent: null,
+    first_parent: null,
     is_anonymous: false,
     office_id: props.office.id,
 });
 const submitReply = (interaction) => {
-    console.log(`/interactions/${interaction.ulid}/reply`, replyForm);
-
-    replyForm.direct_parent = interaction.ulid;
-    replyForm.first_parent = interaction.first_parent ?? interaction.ulid;
-
-    router.post(`/interactions/${interaction.ulid}/reply`, replyForm, {
-        preserveScroll: true,
-        onSuccess: () => {
-            replyForm.content = "";
-            replyForm.is_anonymous = false;
-            replyingTo.value = null;
-        },
-    });
-};
-
-const replyTo = (interaction) => {
     if (!page.props.auth.user) {
         toast({
             icon: "error",
@@ -206,26 +190,119 @@ const replyTo = (interaction) => {
         });
         return;
     }
-    if (replyingTo.value === interaction.ulid) {
-        cancelReply();
-    } else {
-        replyingTo.value = interaction.ulid;
-        replyForm.content = "";
-        replyForm.is_anonymous = false;
-        replyForm.direct_parent = interaction.ulid;
-        replyForm.reply_to = interaction.type;
+    // console.log(`/interactions/${interaction.ulid}/reply`, replyForm);
 
-        // kalau interaction ini komentar utama, first_parent = dirinya sendiri
-        // kalau interaction ini balasan, first_parent tetap ikut dari root asalnya
-        replyForm.first_parent = interaction.first_parent ?? interaction.ulid;
-    }
+    replyForm.direct_parent = interaction.ulid;
+    replyForm.first_parent = interaction.first_parent ?? interaction.ulid;
+
+    router.post(`/interactions/${interaction.ulid}/reply`, replyForm, {
+        preserveScroll: true,
+        onSuccess: async () => {
+            replyForm.content = "";
+            replyForm.is_anonymous = false;
+            // replyingTo.value = null;
+
+            await loadReplies(interaction, true);
+        },
+        
+    });
 };
 
-const cancelReply = () => {
+const replyTo = (interaction) => {
+    // if (replyingTo.value === interaction.ulid) {
+    //     cancelReply();
+    //     return;
+    // }
+
+    replyingTo.value = interaction.ulid;
+    replyForm.content = "";
+    replyForm.is_anonymous = false;
+    replyForm.direct_parent = interaction.ulid;
+    replyForm.reply_to = interaction.type === "reply"
+        ? interaction.reply_to
+        : interaction.type;
+
+    replyForm.first_parent = interaction.first_parent ?? interaction.first_parent_id ?? interaction.ulid;
+};
+
+const cancelReply = (interaction) => {
+    const id = interaction.first_parent ?? interaction.first_parent_id ?? interaction.ulid;
+
     replyForm.content = "";
     replyForm.is_anonymous = false;
     replyingTo.value = null;
+
+    openedReplies.value[id] = false;
 };
+
+//show replies
+const openedReplies = ref({});
+const replies = reactive({});
+const loadingReplies = reactive({});
+
+const loadReplies = async (interaction, force = false) => {
+    const id = interaction.first_parent ?? interaction.first_parent_id ?? interaction.ulid;
+
+    openedReplies.value[id] = true;
+
+    if (replies[id] && !force) return;
+
+    loadingReplies[id] = true;
+
+    try {
+        const res = await fetch(`/interactions/${id}/replies`, {
+            headers: {
+                Accept: "application/json",
+            },
+        });
+
+        const data = await res.json();
+
+        replies[id] = data.data;
+    } finally {
+        loadingReplies[id] = false;
+    }
+};
+
+const toggleReplies = async (interaction) => {
+    const id = interaction.first_parent ?? interaction.first_parent_id ?? interaction.ulid;
+
+    openedReplies.value[id] = !openedReplies.value[id];
+
+    if (!openedReplies.value[id]) return;
+
+    await loadReplies(interaction);
+};
+
+// const toggleReplies = async (interaction) => {
+//     // console.log("toggleReplies", interaction.ulid);
+//     const id = interaction.ulid;
+
+//     openedReplies.value[id] = !openedReplies.value[id];
+
+//     if (!openedReplies.value[id]) return;
+
+//     if (replies[id]) return;
+
+//     loadingReplies[id] = true;
+
+//     try {
+//         const res = await fetch(
+//             `/interactions/${interaction.ulid}/replies`,
+//             {
+//                 headers: {
+//                     Accept: "application/json",
+//                 },
+//             }
+//         );
+
+//         const data = await res.json();
+
+//         replies[id] = data.data;
+//     } finally {
+//         loadingReplies[id] = false;
+//     }
+// };
 
 /* ------------------------------------------------------------------ */
 /* FEED — cache per tab                                                 */
@@ -899,7 +976,10 @@ function removeReviewFilePreview(index) {
                             <!-- Reply button -->
                             <button
                                 type="button"
-                                @click.stop="replyTo(interaction)"
+                                @click.stop="
+                                    replyTo(interaction);
+                                    toggleReplies(interaction);
+                                "
                                 class="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs transition"
                                 :class="
                                     replyingTo === interaction.ulid
@@ -922,6 +1002,7 @@ function removeReviewFilePreview(index) {
                                 </svg>
                                 <span>Balas</span>
                             </button>
+
                             <!-- Tambah di template, di dalam card, setelah card-footer -->
                         </div>
 
@@ -947,6 +1028,7 @@ function removeReviewFilePreview(index) {
                             </svg>
                         </button>
                     </div>
+
                     <!-- Reply Accordion -->
                     <transition
                         enter-active-class="transition-all duration-200 ease-out"
@@ -1009,7 +1091,7 @@ function removeReviewFilePreview(index) {
                                     <div class="flex gap-2">
                                         <button
                                             type="button"
-                                            @click.stop="cancelReply"
+                                            @click.stop="cancelReply(interaction)"
                                             class="rounded-lg border border-gray-200 px-3 py-1.5 text-xs text-gray-500 transition hover:bg-gray-100"
                                         >
                                             Batal
@@ -1048,6 +1130,70 @@ function removeReviewFilePreview(index) {
                             </div>
                         </div>
                     </transition>
+                    <div
+                        v-if="openedReplies[interaction.ulid]"
+                        class="border-t border-gray-100 bg-white px-6 py-4"
+                    >
+                        <p
+                            v-if="loadingReplies[interaction.ulid]"
+                            class="text-xs text-gray-400"
+                        >
+                            Memuat balasan...
+                        </p>
+
+                        <div
+                            v-for="reply in replies[interaction.ulid]"
+                            :key="reply.ulid"
+                            class="mb-3 border-l-2 border-gray-100 pl-3"
+                        >
+                            <p class="text-xs text-gray-500">
+                                {{ reply.user?.name ?? "Anonim" }}
+                                <span v-if="reply.direct_parent">
+                                    membalas
+                                    {{ reply.direct_parent.user?.name }}
+                                </span>
+                            </p>
+
+                            <p class="mt-1 text-sm text-gray-700">
+                                {{ reply.main_contents?.reply?.value }}
+                            </p>
+
+                            <div class="mt-2 flex items-center gap-3">
+                               
+                                <!-- Like button -->
+                                <button
+                                    type="button"
+                                    @click.stop="toggleLikeInteraction(reply)"
+                                    class="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs transition"
+                                    :class="
+                                        reply.is_liked
+                                            ? 'text-red-500 hover:bg-red-50'
+                                            : 'text-gray-400 hover:bg-gray-50 hover:text-red-400'
+                                    "
+                                >
+                                    <span>{{
+                                        reply.is_liked ? "❤️" : "🤍"
+                                    }}</span>
+                                    <span class="tabular-nums">{{
+                                        reply.likes_count
+                                    }}</span>
+                                </button>
+                                
+                            </div>
+
+                            <!-- <p class="mt-1 text-sm text-gray-700">
+                                {{ reply.content }}
+                            </p> -->
+
+                            <!-- <button
+                                type="button"
+                                @click.stop="replyTo(reply)"
+                                class="mt-1 text-xs text-blue-500"
+                            >
+                                Balas
+                            </button> -->
+                        </div>
+                    </div>
                 </button>
             </div>
 

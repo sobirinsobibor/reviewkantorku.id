@@ -34,9 +34,9 @@ return [
         ],
     ],
     'reply' => [
-        'main_contents' => ['message'],
+        'main_contents' => ['reply'],
         'labels' => [
-            'message' => 'Pesan Balasan',
+            'reply' => 'Pesan Balasan',
         ],
     ],
 ];

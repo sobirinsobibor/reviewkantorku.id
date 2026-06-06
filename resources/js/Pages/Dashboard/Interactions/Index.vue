@@ -174,7 +174,10 @@ const getUserData = (field) => {
                                 interaction.type === 'cerita_magang',
                             'bg-yellow-50 text-yellow-600':
                                 interaction.type === 'menfess',
-                            'bg-green-50 text-green-600': interaction.type === 'qna',
+                            'bg-green-50 text-green-600': 
+                                interaction.type === 'qna',
+                            'bg-gray-50 text-gray-600': 
+                                interaction.type === 'reply',
                         }"
                     >
                         {{ interaction.type }}
@@ -183,7 +186,7 @@ const getUserData = (field) => {
 
                 <!-- CONTENT -->
                 <p class="text-sm text-gray-700 line-clamp-2 mb-3">
-                    {{ interaction.experience }}
+                    {{ interaction.main_contents }}
                 </p>
 
                 <!-- FOOTER -->
