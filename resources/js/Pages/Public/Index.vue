@@ -117,7 +117,7 @@ const whys = [
 
                 <div class="flex flex-wrap items-center gap-3">
                     <Link
-                        href="/register"
+                        href="/kantor"
                         class="rounded-full bg-blue-600 px-6 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-blue-700"
                     >
                         🚀 Mulai Review
