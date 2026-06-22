@@ -27,9 +27,16 @@ class InteractionController extends Controller
                     'name' => $interaction->office?->name,
                     'slug' => $interaction->office?->slug,
                 ],
+                'user' => [
+                    'name' => $interaction->user?->name,
+                    'initials' => $interaction->is_anonymous
+                        ? 'AN'
+                        : strtoupper(substr($interaction->user?->name ?? 'User', 0, 2)),
+                ],
                 'attributes' => $interaction->attributes,
                 'experience' => $interaction->experience,
                 'is_hidden' => $interaction->is_hidden,
+                'is_anonymous' => $interaction->is_anonymous,
                 'created_at' => $interaction->created_at->format('d M Y'),
             ]);
 
@@ -48,22 +55,22 @@ class InteractionController extends Controller
         ]);
     }
 
-    public function update(Request $request)
+    public function update(Request $request, $ulid)
     {
-        $interaction = Interaction::select('is_hidden', 'user_id')->where('ulid', $request->ulid)->firstOrFail();
-    
+        
+        $interaction = Interaction::select('id', 'ulid', 'is_hidden', 'is_anonymous', 'user_id')->where('ulid', $ulid)->firstOrFail();
+        // dd($interaction);
         abort_if($interaction->user_id !== auth()->id(), 403);
 
         $validated = $request->validate([
-            'is_hidden' => ['required', 'boolean'],
+            'is_hidden' => ['sometimes', 'boolean'],
+            'is_anonymous' => ['sometimes', 'boolean'],
         ]);
 
-        // dd($validated['is_hidden']);
+        // dd($validated);
 
-        $interaction->update([
-            'is_hidden' => $validated['is_hidden'],
-        ]);
+        $interaction->update($validated);
 
-        return back()->with('success', 'Status interaksi berhasil diperbarui.');
+        return back()->with('success', 'Interaksi berhasil diperbarui.');
     }
 }

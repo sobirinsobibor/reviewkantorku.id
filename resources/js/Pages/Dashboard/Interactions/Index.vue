@@ -48,6 +48,29 @@ const updateVisibility = (interaction) => {
     );
 };
 
+const updateAnonymous = (interaction) => {
+    router.put(
+        `/dashboard/interaksi/${interaction.ulid}`,
+        {
+            is_anonymous: !interaction.is_anonymous,
+            ulid: interaction.ulid,
+        },
+        {
+            preserveScroll: true,
+            onSuccess: () => {
+                selectedInteraction.value = {
+                    ...interaction,
+                    is_anonymous: !interaction.is_anonymous,
+                },
+                toast({ icon: 'success', title: 'Status anonimitas berhasil diubah!' })
+            },
+            onError: () => {
+                toast({ icon: 'error', title: 'Terjadi kesalahan!' })
+            },
+        },
+    );
+};
+
 const typeLabel = (type) => {
     return (
         {
@@ -151,46 +174,101 @@ const getUserData = (field) => {
             <div
                 v-for="interaction in interactions.data"
                 :key="interaction.id"
-                class="rounded-2xl border border-blue-100 bg-white p-4 transition hover:shadow-sm"
+                class="relative rounded-xl border border-gray-100 bg-white p-5 transition hover:border-gray-200 group"
             >
-                <!-- HEADER -->
-                <div class="flex items-start justify-between mb-2">
-                    <div>
-                        <p class="text-sm font-medium text-gray-900">
-                            {{ interaction.office.name }}
-                        </p>
+                <!-- Blue left accent on hover -->
+                <span
+                    class="absolute left-0 top-4 bottom-4 w-0.5 rounded-r bg-blue-600 opacity-0 group-hover:opacity-100 transition-opacity"
+                ></span>
 
-                        <p class="text-[11px] text-gray-400">
-                            {{ interaction.created_at }}
-                        </p>
+                <!-- Header -->
+                <div class="mb-3 flex items-center justify-between">
+                    <div class="flex items-center gap-2.5">
+                        <div
+                            class="flex h-8 w-8 items-center justify-center rounded-full border border-gray-100 bg-blue-50 text-xs font-medium text-blue-700"
+                        >
+                            {{ interaction.user?.initials ?? 'U' }}
+                        </div>
+                        <div>
+                            <p class="text-sm font-medium text-gray-900">
+                                {{ interaction.user?.name ?? 'Unknown' }}
+                            </p>
+                            <p class="text-xs text-gray-400">
+                                {{ interaction.office?.name }}
+                            </p>
+                        </div>
                     </div>
-
                     <span
-                        class="text-[11px] px-2 py-0.5 rounded-full"
+                        class="text-[11px] px-2 py-0.5 rounded-full font-medium"
                         :class="{
-                            'bg-blue-50 text-blue-600':
-                                interaction.type === 'review',
-                            'bg-purple-50 text-purple-600':
-                                interaction.type === 'cerita_magang',
-                            'bg-yellow-50 text-yellow-600':
-                                interaction.type === 'menfess',
-                            'bg-green-50 text-green-600': 
-                                interaction.type === 'qna',
-                            'bg-gray-50 text-gray-600': 
-                                interaction.type === 'reply',
+                            'bg-blue-50 text-blue-600': interaction.type === 'review',
+                            'bg-purple-50 text-purple-600': interaction.type === 'cerita_magang',
+                            'bg-yellow-50 text-yellow-600': interaction.type === 'menfess',
+                            'bg-green-50 text-green-600': interaction.type === 'qna',
+                            'bg-gray-50 text-gray-600': interaction.type === 'reply',
                         }"
                     >
-                        {{ interaction.type }}
+                        {{ typeLabel(interaction.type) }}
                     </span>
                 </div>
 
-                <!-- CONTENT -->
-                <p class="text-sm text-gray-700 line-clamp-2 mb-3">
-                    {{ interaction.main_contents }}
-                </p>
+                <!-- Divider -->
+                <div class="mb-3 h-px bg-gray-100"></div>
 
-                <!-- FOOTER -->
-                <div class="flex items-center justify-between">
+                <!-- Content -->
+                <div class="space-y-1.5 mb-3">
+                    <template
+                        v-for="(item, key) in interaction.main_contents"
+                        :key="key"
+                    >
+                        <p
+                            v-if="item.value"
+                            class="text-sm leading-relaxed text-gray-600"
+                        >
+                            <span class="font-medium text-gray-700">{{ item.label }}:</span>
+                            {{ item.value }}
+                        </p>
+                    </template>
+                </div>
+
+                <!-- Photo badge -->
+                <div v-if="interaction.files?.length" class="mb-3">
+                    <span
+                        class="inline-flex items-center gap-1.5 rounded-lg border border-gray-100 bg-gray-50 px-2.5 py-1 text-xs text-gray-400"
+                    >
+                        <svg
+                            class="h-3.5 w-3.5"
+                            fill="none"
+                            viewBox="0 0 16 16"
+                        >
+                            <rect
+                                x="1"
+                                y="3"
+                                width="14"
+                                height="11"
+                                rx="1.5"
+                                stroke="currentColor"
+                                stroke-width="1.2"
+                            />
+                            <circle
+                                cx="5.5"
+                                cy="7.5"
+                                r="1.5"
+                                stroke="currentColor"
+                                stroke-width="1.2"
+                            />
+                            <path
+                                d="M1 12l3.5-3.5 2.5 2.5 2.5-2.5 4.5 4"
+                                stroke="currentColor"
+                                stroke-width="1.2"
+                            />
+                        </svg>
+                        {{ interaction.files.length }} foto
+                    </span>
+                </div>
+
+                <!-- Status & Action -->
+                <div class="flex items-center justify-between border-t border-gray-100 pt-3">
                     <span
                         class="inline-flex items-center gap-1.5 text-[11px] px-2 py-0.5 rounded-full font-medium"
                         :class="
@@ -205,7 +283,6 @@ const getUserData = (field) => {
                                 interaction.is_hidden ? 'bg-red-500' : 'bg-green-500'
                             "
                         ></span>
-
                         {{ interaction.is_hidden ? "Disembunyikan" : "Tampil" }}
                     </span>
 
@@ -219,19 +296,30 @@ const getUserData = (field) => {
             </div>
         </div>
 
+        <!-- PAGINATION -->
         <div class="mt-4 flex justify-center gap-2">
-            <Link
-                v-for="link in interactions.links"
-                :key="link.label"
-                :href="link.url || '#'"
-                v-html="link.label"
-                class="rounded-lg border px-3 py-1 text-sm"
-                :class="{
-                    'border-blue-600 bg-blue-600 text-white': link.active,
-                    'pointer-events-none text-gray-300': !link.url,
-                    'text-gray-600 hover:bg-blue-50': link.url && !link.active,
-                }"
-            />
+            <template v-for="link in interactions.links" :key="link.label">
+                <Link
+                    v-if="link.url"
+                    :href="link.url"
+                    class="rounded border px-3 py-1 text-sm transition"
+                    :class="link.active 
+                        ? 'bg-blue-500 text-white border-blue-500' 
+                        : 'text-gray-600 hover:bg-gray-100'"
+                >
+                    <span v-if="link.label.includes('previous') || link.label === '&laquo; Previous'">«</span>
+                    <span v-else-if="link.label.includes('next') || link.label === 'Next &raquo;'">»</span>
+                    <span v-else v-html="link.label" />
+                </Link>
+                <span
+                    v-else
+                    class="rounded border px-3 py-1 text-sm text-gray-300 cursor-not-allowed"
+                >
+                    <span v-if="link.label.includes('previous')">«</span>
+                    <span v-else-if="link.label.includes('next')">»</span>
+                    <span v-else v-html="link.label" />
+                </span>
+            </template>
         </div>
 
         <div
@@ -317,6 +405,83 @@ const getUserData = (field) => {
                         >
                             {{ selectedInteraction.positive_notes }}
                         </p>
+                    </div>
+
+                    <!-- Toggles Row -->
+                    <div class="grid grid-cols-2 gap-3">
+                        <!-- Anonymous Toggle -->
+                        <div class="rounded-lg border border-gray-100 bg-gray-50 p-3">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-sm font-medium text-gray-900">
+                                        Anonimkan nama pengguna
+                                    </p>
+                                    <p class="mt-0.5 text-xs text-gray-500">
+                                        {{
+                                            selectedInteraction.is_anonymous
+                                                ? 'Nama pengguna disembunyikan.'
+                                                : 'Nyalakan untuk menyembunyikan nama pengguna.'
+                                        }}
+                                    </p>
+                                </div>
+                                <button
+                                    type="button"
+                                    @click="updateAnonymous(selectedInteraction)"
+                                    class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors"
+                                    :class="
+                                        selectedInteraction.is_anonymous
+                                            ? 'bg-gray-300'
+                                            : 'bg-blue-600'
+                                    "
+                                >
+                                    <span
+                                        class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200"
+                                        :class="
+                                            selectedInteraction.is_anonymous
+                                                ? 'translate-x-0'
+                                                : 'translate-x-5'
+                                        "
+                                    />
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Visibility Toggle -->
+                        <div class="rounded-lg border border-gray-100 bg-gray-50 p-3">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-sm font-medium text-gray-900">
+                                        Sembunyikan interaksi
+                                    </p>
+                                    <p class="mt-0.5 text-xs text-gray-500">
+                                        {{
+                                            selectedInteraction.is_hidden
+                                                ? 'Interaksi ini hanya dapat dilihat oleh Anda.'
+                                                : 'Nyalakan agar interaksi ini tidak terlihat oleh pengguna lain.'
+                                        }}
+                                    </p>
+                                </div>
+                                <button
+                                    type="button"
+                                    @click="updateVisibility(selectedInteraction)"
+                                    class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors"
+                                    :class="
+                                        selectedInteraction.is_hidden
+                                            ? 'bg-red-500'
+                                            : 'bg-green-500'
+                                    "
+                                >
+                                    <span
+                                        class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200"
+                                        :class="
+                                            selectedInteraction.is_hidden
+                                                ? 'translate-x-0'
+                                                : 'translate-x-5'
+                                        "
+                                    />
+                                </button>
+                            </div>
+                        </div>
                     </div>
 
                     <!-- Attributes -->
@@ -414,23 +579,6 @@ const getUserData = (field) => {
                         class="rounded-lg border border-blue-100 px-4 py-2 text-sm text-gray-600 hover:bg-blue-50"
                     >
                         Tutup
-                    </button>
-
-                    <button
-                        type="button"
-                        @click="updateVisibility(selectedInteraction)"
-                        class="rounded-lg px-4 py-2 text-sm text-white"
-                        :class="
-                            selectedInteraction.is_hidden
-                                ? 'bg-green-600 hover:bg-green-700'
-                                : 'bg-red-600 hover:bg-red-700'
-                        "
-                    >
-                        {{
-                            selectedInteraction.is_hidden
-                                ? "Tampilkan lagi"
-                                : "Sembunyikan"
-                        }}
                     </button>
                 </div>
             </div>
