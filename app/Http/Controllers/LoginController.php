@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Laravel\Socialite\Facades\Socialite;
+use Faker\Factory;
 
 class LoginController extends Controller
 {
@@ -24,8 +25,10 @@ class LoginController extends Controller
         $user = User::whereEmail($googleUser->email)->first();
         
         if (!$user) {
+            $faker = Factory::create();
+
             do {
-                $username = Str::slug(fake()->words(2, true), '-');
+                $username = Str::slug($faker->words(2, true), '-');
                 $username .= '-' . rand(10, 999);
             } while (User::where('username', $username)->exists());
 
