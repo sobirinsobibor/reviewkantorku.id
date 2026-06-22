@@ -45,6 +45,7 @@ class OfficeController extends Controller
         return Inertia::render('Dashboard/Offices/Index', [
             'offices' => $offices->through(fn ($office) => [
                 'id' => $office->id,
+                'ulid' => $office->ulid,
                 'name' => $office->name,
                 'slug' => $office->slug,
                 'address' => $office->address,
@@ -288,5 +289,13 @@ class OfficeController extends Controller
         return redirect()
             ->route('kantor.index')
             ->with('success', 'Kantor berhasil diperbarui dan menunggu persetujuan ulang.');
+    }
+
+    public function destroy($id)
+    {
+        $office = Office::where('id', $id)->firstOrFail();
+        $office->delete();
+
+        return response();
     }
 }
