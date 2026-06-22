@@ -1,10 +1,10 @@
 <script setup>
 import { computed } from "vue";
 import { Link, usePage } from "@inertiajs/vue3";
-import PublicLayout from "@/Layouts/PublicLayout.vue";
+import DashboardLayout from "@/Layouts/DashboardLayout.vue";
 
 defineOptions({
-    layout: PublicLayout,
+    layout: DashboardLayout,
 });
 
 const page = usePage();

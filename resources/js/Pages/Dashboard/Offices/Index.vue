@@ -1,10 +1,13 @@
 <script setup>
 import { Link, useForm } from "@inertiajs/vue3";
-import DashboardLayout from "@/Layouts/PublicLayout.vue";
+import DashboardLayout from "@/Layouts/DashboardLayout.vue";
+import { useSweetAlert } from '@/Composables/UseSweetAlert'
 
 defineOptions({
     layout: DashboardLayout,
 });
+
+const { toast } = useSweetAlert();
 
 const props = defineProps({
     offices: Object,
@@ -39,6 +42,11 @@ const deleteOffice = (office) => {
 
     destroyForm.delete(`/dashboard/kantor/${office.id}`, {
         preserveScroll: true,
+        onSuccess: () => {
+            // toast.success("Kantor berhasil dihapus");
+            toast({ icon: 'success', title: 'Kantor berhasil dihapus' })
+
+        },
     });
 };
 </script>

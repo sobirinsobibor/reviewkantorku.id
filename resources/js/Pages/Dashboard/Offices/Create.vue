@@ -1,13 +1,13 @@
 <script setup>
 import { computed, ref, watch } from "vue";
 import { Link, useForm } from "@inertiajs/vue3";
-import PublicLayout from "@/Layouts/PublicLayout.vue";
+import DashboardLayout from "@/Layouts/DashboardLayout.vue";
 import { useSweetAlert } from '@/Composables/UseSweetAlert'
 
 const { toast } = useSweetAlert()
 
 defineOptions({
-    layout: PublicLayout,
+    layout: DashboardLayout,
 });
 
 const props = defineProps({

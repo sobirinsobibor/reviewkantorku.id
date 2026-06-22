@@ -1,7 +1,7 @@
 <script setup>
 import { Link } from "@inertiajs/vue3";
 import { ref } from "vue";
-import DashboardLayout from "@/Layouts/PublicLayout.vue";
+import DashboardLayout from "@/Layouts/DashboardLayout.vue";
 
 const previewImage = ref(null);
 

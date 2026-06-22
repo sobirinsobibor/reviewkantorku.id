@@ -128,10 +128,8 @@ class OfficeController extends Controller
     }
 
 
-    public function show($slug)
+    public function show(Office $office)
     {
-        $office = Office::where('slug', $slug)->firstOrFail();
-
         // dd($office);
         
         abort_if($office->created_by != auth()->user()->id, 403);
@@ -171,10 +169,8 @@ class OfficeController extends Controller
         ]);
     }
 
-    public function edit($slug)
+    public function edit(Office $office)
     {
-        $office = Office::where('slug', $slug)->firstOrFail();
-
         abort_if($office->created_by !== auth()->id(), 403);
         abort_if($office->status === 'approved', 403, 'Kantor yang sudah approved tidak bisa diedit.');
 
@@ -293,9 +289,9 @@ class OfficeController extends Controller
 
     public function destroy($id)
     {
-        $office = Office::where('id', $id)->firstOrFail();
+        $office = Office::findOrFail($id);
         $office->delete();
 
-        return response();
+        return back();
     }
 }

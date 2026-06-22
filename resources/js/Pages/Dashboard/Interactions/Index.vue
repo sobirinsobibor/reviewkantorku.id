@@ -1,7 +1,7 @@
 <script setup>
 import { ref } from "vue";
 import { Link, router } from "@inertiajs/vue3";
-import DashboardLayout from "@/Layouts/PublicLayout.vue";
+import DashboardLayout from "@/Layouts/DashboardLayout.vue";
 import { useSweetAlert } from '@/Composables/UseSweetAlert'
 
 const { toast } = useSweetAlert()
