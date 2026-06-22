@@ -479,7 +479,7 @@ function removeReviewFilePreview(index) {
     <div>
         <!-- Back -->
         <Link
-            href="/"
+            href="/kantor"
             class="mb-4 inline-flex items-center gap-1.5 text-sm text-gray-400 hover:text-blue-600"
         >
             <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 14 14">
